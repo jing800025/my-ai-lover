@@ -6122,6 +6122,10 @@
       <input type="radio" name="provider" value="lmstudio" onchange="onProviderChange()">
       <span>🖥️ LM Studio</span>
     </label>
+    <label class="provider-option">
+      <input type="radio" name="provider" value="custom" onchange="onProviderChange()">
+      <span>🔌 自定义 API</span>
+    </label>
     <!-- 🍎 vMLX 暂未启用 -->
     <!-- <label class="provider-option">
       <input type="radio" name="provider" value="vmlx" onchange="onProviderChange()">
@@ -6190,6 +6194,21 @@
     <input type="text" id="lmstudioModelInput"  data-i18n-ph="留空则自动选择"placeholder="留空则自动选择" value="">
     <div class="setting-item-desc" data-i18n="可以在 LM Studio 的 Developer 里查看模型名称">
       可以在 LM Studio 的 Developer 里查看模型名称
+    </div>
+  </div>
+
+  <div id="customConfig" style="display:none;">
+    <label data-i18n="API Base URL">API Base URL</label>
+    <input type="text" id="customBaseUrlInput" placeholder="https://moma.cmecloud.cn/v1" value="">
+    <div class="setting-item-desc" data-i18n="兼容 OpenAI Chat Completions 格式的 API 地址（末尾不要带 /chat/completions）">
+      兼容 OpenAI Chat Completions 格式的 API 地址（末尾不要带 /chat/completions）
+    </div>
+    <label style="margin-top:12px;" data-i18n="API Key">API Key</label>
+    <input type="password" id="customApiKeyInput" placeholder="sk-..." value="">
+    <label style="margin-top:12px;" data-i18n="模型名称">模型名称</label>
+    <input type="text" id="customModelInput" placeholder="qwen/deepseek-v4-pro" value="">
+    <div class="setting-item-desc" data-i18n="填写完整的模型 ID，如 qwen/deepseek-v4-pro、gpt-4o-mini 等">
+      填写完整的模型 ID，如 qwen/deepseek-v4-pro、gpt-4o-mini 等
     </div>
   </div>
 
@@ -7871,6 +7890,9 @@ const API_KEY_KEY = 'suichat_api_key';
 const PROVIDER_KEY = 'suichat_provider';
 const LMSTUDIO_URL_KEY = 'suichat_lmstudio_url';
 const LMSTUDIO_MODEL_KEY = 'suichat_lmstudio_model';
+const CUSTOM_URL_KEY = 'suichat_custom_url';
+const CUSTOM_KEY_KEY = 'suichat_custom_key';
+const CUSTOM_MODEL_KEY = 'suichat_custom_model';
 const VMLX_URL_KEY = 'suichat_vmlx_url';
 const VMLX_MODEL_KEY = 'suichat_vmlx_model';
 const THEME_KEY = 'suichat_theme';
@@ -9638,6 +9660,9 @@ let state = {
   provider: localStorage.getItem(PROVIDER_KEY) || 'deepseek',
   lmstudioUrl: localStorage.getItem(LMSTUDIO_URL_KEY) || 'http://localhost:1234',
   lmstudioModel: localStorage.getItem(LMSTUDIO_MODEL_KEY) || '',
+  customBaseUrl: localStorage.getItem(CUSTOM_URL_KEY) || 'https://moma.cmecloud.cn/v1',
+  customApiKey: localStorage.getItem(CUSTOM_KEY_KEY) || '',
+  customModel: localStorage.getItem(CUSTOM_MODEL_KEY) || 'qwen/deepseek-v4-pro',
   vmlxUrl: localStorage.getItem(VMLX_URL_KEY) || 'http://localhost:8080',
   vmlxModel: localStorage.getItem(VMLX_MODEL_KEY) || '',  // 提示：MLX Studio 需要填写实际模型名称
   theme: localStorage.getItem(THEME_KEY) || 'light',  // 'light' = 日间, '' = 夜间
@@ -9920,6 +9945,7 @@ const KV_SKIP_KEYS = new Set([
   'suichat_doubao_tts_key',
   'suichat_qiyun_key',
   'suichat_translate_api_key',
+  'suichat_custom_key',
   STORAGE_KEY,
 ]);
 // 另有规则：以 "__" 开头的内部键一律不镜像（如 __ls_probe__）
@@ -11216,6 +11242,7 @@ const BACKUP_SENSITIVE_KEYS = new Set([
   'suichat_doubao_tts_key',
   'suichat_qiyun_key',
   'suichat_translate_api_key',
+  'suichat_custom_key',
 ]);
 
 /** 剔除会话级专属 API Key（返回新数组，不改动原对象） */
@@ -17345,6 +17372,9 @@ function toggleSettings() {
     document.getElementById('apiKeyInput').value = state.apiKey || '';
     document.getElementById('lmstudioUrlInput').value = state.lmstudioUrl || 'http://localhost:1234';
     document.getElementById('lmstudioModelInput').value = state.lmstudioModel || '';
+    document.getElementById('customBaseUrlInput') && (document.getElementById('customBaseUrlInput').value = state.customBaseUrl || 'https://moma.cmecloud.cn/v1');
+    document.getElementById('customApiKeyInput') && (document.getElementById('customApiKeyInput').value = state.customApiKey || '');
+    document.getElementById('customModelInput') && (document.getElementById('customModelInput').value = state.customModel || 'qwen/deepseek-v4-pro');
     document.getElementById('vmlxUrlInput') && (document.getElementById('vmlxUrlInput').value = state.vmlxUrl || 'http://localhost:8080');
     document.getElementById('vmlxModelInput') && (document.getElementById('vmlxModelInput').value = state.vmlxModel || '');
     const bInput = document.getElementById('bochaApiKeyInput');
@@ -19493,6 +19523,7 @@ function onProviderChange() {
   const provider = document.querySelector('input[name="provider"]:checked')?.value || 'deepseek';
   document.getElementById('deepseekConfig').style.display = provider === 'deepseek' ? 'block' : 'none';
   document.getElementById('lmstudioConfig').style.display = provider === 'lmstudio' ? 'block' : 'none';
+  document.getElementById('customConfig').style.display = provider === 'custom' ? 'block' : 'none';
   const vmlxEl = document.getElementById('vmlxConfig');
   if (vmlxEl) vmlxEl.style.display = provider === 'vmlx' ? 'block' : 'none';
   // 仅 DeepSeek 显示：思考模式 / 模型选择 / 思考强度
@@ -19560,6 +19591,17 @@ function saveSettings() {
   const model = document.getElementById('lmstudioModelInput').value.trim();
   state.lmstudioUrl = url;
   state.lmstudioModel = model;
+
+  // 自定义 API 配置
+  const customUrl = document.getElementById('customBaseUrlInput')?.value.trim() || 'https://moma.cmecloud.cn/v1';
+  const customKey = document.getElementById('customApiKeyInput')?.value.trim() || '';
+  const customModel = document.getElementById('customModelInput')?.value.trim() || 'qwen/deepseek-v4-pro';
+  state.customBaseUrl = customUrl;
+  state.customApiKey = customKey;
+  state.customModel = customModel;
+  localStorage.setItem(CUSTOM_URL_KEY, customUrl);
+  localStorage.setItem(CUSTOM_KEY_KEY, customKey);
+  localStorage.setItem(CUSTOM_MODEL_KEY, customModel);
 
   // vMLX 配置（元素可能被注释掉）
   const vmlxUrlEl = document.getElementById('vmlxUrlInput');
@@ -20611,7 +20653,12 @@ function startMatching(withIntent) {
     return;
   }
   if (state.provider === 'deepseek' && !state.apiKey) {
-    showToast('⚠️ 需要先配置好 API');
+    showToast('⚠️ 需要先配置好 DeepSeek API');
+    document.getElementById('settingsPanel').classList.add('visible');
+    return;
+  }
+  if (state.provider === 'custom' && !state.customApiKey) {
+    showToast('⚠️ 需要先配置好自定义 API');
     document.getElementById('settingsPanel').classList.add('visible');
     return;
   }
@@ -25795,6 +25842,9 @@ function getEffectiveApiConfig(conv) {
     apiKey:        useOverride ? ov.apiKey   : state.apiKey,
     lmstudioUrl:   state.lmstudioUrl,
     lmstudioModel: state.lmstudioModel,
+    customBaseUrl: state.customBaseUrl,
+    customApiKey:  state.customApiKey,
+    customModel:   state.customModel,
     vmlxUrl:       state.vmlxUrl,
     vmlxModel:     state.vmlxModel,
     deepThink: (ov && typeof ov.thinking === 'boolean') ? ov.thinking : state.deepThink,
@@ -25831,6 +25881,13 @@ async function callDeepSeek(params, conv) {
       ? { messages: params, temperature: 0.9, max_tokens: 16384, stream: false }
       : { ...params, stream: false };
     if (!bodyPayload.model && cfg.lmstudioModel) bodyPayload.model = cfg.lmstudioModel;
+  } else if (cfg.provider === 'custom') {
+    url = `${cfg.customBaseUrl.replace(/\/+$/, '')}/chat/completions`;
+    headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.customApiKey}` };
+    bodyPayload = isArray
+      ? { model: cfg.customModel || 'qwen/deepseek-v4-pro', messages: params, temperature: 0.9, max_tokens: 16384, stream: false }
+      : { model: cfg.customModel || 'qwen/deepseek-v4-pro', ...params, stream: false };
+    console.log(`🌐 [callDeepSeek 自定义API] URL: ${url}, Model: ${bodyPayload.model}, 消息数: ${(bodyPayload.messages || []).length}`);
   } else if (cfg.provider === 'vmlx') {
     const useProxy = window.location.protocol === 'http:' || window.location.protocol === 'https:';
     url = useProxy ? '/v1/chat/completions' : `${cfg.vmlxUrl.replace(/\/+$/, '')}/v1/chat/completions`;
@@ -26049,7 +26106,7 @@ async function callDeepSeekWithTools(messages, tools, onReasoning, conv) {
 
   while (toolCallCount < MAX_ROUNDS) {
     const body = {
-      model: cfg.provider === 'deepseek' ? getDeepSeekModel() : (cfg.provider === 'lmstudio' ? (cfg.lmstudioModel || undefined) : (cfg.vmlxModel || 'local')),
+      model: cfg.provider === 'deepseek' ? getDeepSeekModel() : (cfg.provider === 'lmstudio' ? (cfg.lmstudioModel || undefined) : (cfg.provider === 'vmlx' ? (cfg.vmlxModel || 'local') : (cfg.customModel || 'qwen/deepseek-v4-pro'))),
       messages: currentMessages,
       temperature: 0.9,
       max_tokens: 16384,   // 与其他调用（含本地模型）保持一致；DeepSeek 那条分支单独用 8192
@@ -26097,6 +26154,7 @@ async function callDeepSeekWithTools(messages, tools, onReasoning, conv) {
   if (cfg.provider === 'deepseek') { finalBody.model = getDeepSeekModel(); finalBody.thinking = { type: cfg.deepThink ? 'enabled' : 'disabled' }; if (cfg.deepThink) finalBody.reasoning_effort = getReasoningEffort(); }
   else if (cfg.provider === 'lmstudio' && cfg.lmstudioModel) finalBody.model = cfg.lmstudioModel;
   else if (cfg.provider === 'vmlx') finalBody.model = cfg.vmlxModel || 'local';
+  else if (cfg.provider === 'custom') finalBody.model = cfg.customModel || 'qwen/deepseek-v4-pro';
   const finalRes = await callDeepSeek(finalBody, conv);
   return { content: finalRes?.choices?.[0]?.message?.content || '', toolCallCount };
 }
@@ -30497,6 +30555,9 @@ document.addEventListener('click', (e) => {
   }
   document.getElementById('lmstudioUrlInput').value = state.lmstudioUrl;
   document.getElementById('lmstudioModelInput').value = state.lmstudioModel;
+  document.getElementById('customBaseUrlInput') && (document.getElementById('customBaseUrlInput').value = state.customBaseUrl);
+  document.getElementById('customApiKeyInput') && (document.getElementById('customApiKeyInput').value = state.customApiKey);
+  document.getElementById('customModelInput') && (document.getElementById('customModelInput').value = state.customModel);
   // 默认选中正确 provider
   const providerRadios = document.querySelectorAll('input[name="provider"]');
   providerRadios.forEach(r => { r.checked = r.value === state.provider; });
