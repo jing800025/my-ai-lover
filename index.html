@@ -25885,8 +25885,8 @@ async function callDeepSeek(params, conv) {
     url = `${cfg.customBaseUrl.replace(/\/+$/, '')}/chat/completions`;
     headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.customApiKey}` };
     bodyPayload = isArray
-      ? { model: cfg.customModel || 'qwen/deepseek-v4-pro', messages: params, temperature: 0.9, max_tokens: 16384, stream: false }
-      : { model: cfg.customModel || 'qwen/deepseek-v4-pro', ...params, stream: false };
+      ? { model: cfg.customModel || 'qwen/deepseek-v4-pro', messages: params, temperature: 0.9, max_tokens: 16384, stream: false, thinking: { type: 'disabled' } }
+      : { model: cfg.customModel || 'qwen/deepseek-v4-pro', thinking: { type: 'disabled' }, ...params, stream: false };
     console.log(`🌐 [callDeepSeek 自定义API] URL: ${url}, Model: ${bodyPayload.model}, 消息数: ${(bodyPayload.messages || []).length}`);
   } else if (cfg.provider === 'vmlx') {
     const useProxy = window.location.protocol === 'http:' || window.location.protocol === 'https:';
